@@ -11,6 +11,10 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { toast } from "sonner";
 
 const STARTUP_TYPES = [
     "Fintech", "Edtech", "Healthtech", "SaaS", "AI",
@@ -31,6 +35,7 @@ export default function OnboardingPage() {
     const [formData, setFormData] = useState({
         name: "",
         email: "",
+        password: "",
         types: [] as string[],
         stage: "",
         problem: "",
@@ -50,8 +55,30 @@ export default function OnboardingPage() {
     const handleNext = () => {
         if (step === 1) setStep(2);
         else {
-            // Simulate submission
+            handleSubmit();
+        }
+    };
+
+    const handleSubmit = async () => {
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+            const user = userCredential.user;
+
+            await setDoc(doc(db, "startups", user.uid), {
+                ...formData,
+                password: null, // Don't save password in DB
+                createdAt: new Date(),
+                userId: user.uid
+            });
+
+            toast.success("Startup OS Initialized", {
+                description: "Welcome to your command center."
+            });
             router.push("/dashboard");
+        } catch (error: any) {
+            toast.error("Setup Failed", {
+                description: error.message
+            });
         }
     };
 
@@ -116,6 +143,17 @@ export default function OnboardingPage() {
                                                 value={formData.email}
                                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                                                 required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Password</Label>
+                                            <Input
+                                                type="password"
+                                                placeholder="••••••••"
+                                                value={formData.password}
+                                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                                required
+                                                minLength={6}
                                             />
                                         </div>
                                     </div>

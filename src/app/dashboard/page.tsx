@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DateDisplay } from "@/components/ui/date-display";
+import { useStartupData } from "@/lib/hooks/use-startup-data";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const container = {
     hidden: { opacity: 0 },
@@ -33,6 +35,17 @@ const item = {
 };
 
 export default function DashboardPage() {
+    const { data, loading } = useStartupData();
+
+    if (loading) {
+        return <div className="p-8 space-y-8">
+            <Skeleton className="h-12 w-48" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40" />)}
+            </div>
+        </div>
+    }
+
     return (
         <motion.div
             variants={container}
@@ -43,8 +56,8 @@ export default function DashboardPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                    <p className="text-muted-foreground">Overview of your startup's health and progress.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{data?.name || "Dashboard"}</h1>
+                    <p className="text-muted-foreground">{data?.stage ? `${data.stage} Stage` : "Overview"} - Startup's health and progress.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <DateDisplay />

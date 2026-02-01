@@ -9,24 +9,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/contexts/AuthContext";
 import { toast } from "sonner";
 
 export default function LoginPage() {
     const router = useRouter();
+    const { signInWithGoogle } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [credentials, setCredentials] = useState({ email: "", password: "" });
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCredentials({ ...credentials, [e.target.id]: e.target.value });
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        // Simulate login delay
-        setTimeout(() => {
-            setLoading(false);
-            toast.success("Welcome back, Founder!", {
+        try {
+            await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+            toast.success("Welcome back!", {
                 description: "Redirecting to your dashboard..."
             });
             router.push("/dashboard");
-        }, 1500);
+        } catch (error: any) {
+            toast.error("Login failed", {
+                description: "Invalid email or password."
+            });
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -60,14 +75,14 @@ export default function LoginPage() {
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="email">Email</Label>
-                                <Input id="email" type="email" placeholder="founder@startup.io" required />
+                                <Input id="email" type="email" placeholder="founder@startup.io" required value={credentials.email} onChange={handleChange} />
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password">Password</Label>
                                     <Link href="#" className="text-xs text-primary hover:underline">Forgot password?</Link>
                                 </div>
-                                <Input id="password" type="password" placeholder="••••••••" required />
+                                <Input id="password" type="password" placeholder="••••••••" required value={credentials.password} onChange={handleChange} />
                             </div>
                         </CardContent>
                         <CardFooter className="flex flex-col gap-4">
@@ -83,8 +98,8 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            <Button variant="outline" type="button" className="w-full bg-white/5 border-white/10 hover:bg-white/10">
-                                <Github className="w-4 h-4 mr-2" /> GitHub
+                            <Button variant="outline" type="button" className="w-full bg-white/5 border-white/10 hover:bg-white/10" onClick={signInWithGoogle}>
+                                <Github className="w-4 h-4 mr-2" /> Google
                             </Button>
                         </CardFooter>
                     </form>
