@@ -1,36 +1,71 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Target, Calendar, CheckCircle2, TrendingUp, MoreHorizontal } from "lucide-react";
+import { Plus, Target, Calendar, CheckCircle2, TrendingUp, MoreHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const GOALS = [
-    { id: 1, title: "Launch V1 Beta", type: "Product", progress: 85, dueDate: "Oct 30", status: "On Track" },
-    { id: 2, title: "Secure Seed Funding", type: "Fundraising", progress: 40, dueDate: "Dec 15", status: "At Risk" },
-    { id: 3, title: "Hire Lead Engineer", type: "Team", progress: 100, dueDate: "Completed", status: "Done" },
-    { id: 4, title: "Reach 100 Paying Users", type: "Growth", progress: 25, dueDate: "Nov 20", status: "On Track" },
-];
+import { useDashboardData, Goal } from "@/lib/hooks/use-dashboard-data";
+import { doc, collection, addDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
 
 export default function GoalsPage() {
-    const [goals, setGoals] = useState(GOALS);
+    const { goals, loading } = useDashboardData();
+    const { user } = useAuth();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [stats, setStats] = useState({ active: 0, completed: 0, completionRate: 0 });
 
-    const handleAddGoal = () => {
-        toast.info("Create Goal Modal", {
-            description: "This feature will open a modal to add a new goal in the connected version."
-        });
+    const [newGoal, setNewGoal] = useState({
+        title: "",
+        type: "Product",
+        dueDate: "",
+        progress: 0
+    });
+
+    // Calculate stats
+    if (!loading && goals.length > 0) {
+        const completed = goals.filter(g => g.progress === 100).length;
+        const rate = Math.round((completed / goals.length) * 100);
+        if (stats.completionRate !== rate) {
+            setStats({
+                active: goals.length - completed,
+                completed,
+                completionRate: rate
+            });
+        }
+    }
+
+    const handleCreateGoal = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            if (!user) return;
+            await addDoc(collection(db, `startups/${user.uid}/goals`), {
+                ...newGoal,
+                status: "On Track",
+                createdAt: new Date(),
+                progress: Number(newGoal.progress)
+            });
+            toast.success("Goal Created");
+            setIsModalOpen(false);
+            setNewGoal({ title: "", type: "Product", dueDate: "", progress: 0 });
+        } catch (error) {
+            toast.error("Failed to create goal");
+        }
     };
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in relative transition-all">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Goals & OKRs</h1>
                     <p className="text-muted-foreground">Align your team and track high-level execution.</p>
                 </div>
-                <Button onClick={handleAddGoal} className="bg-primary hover:bg-primary/90">
+                <Button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary/90">
                     <Plus className="w-4 h-4 mr-2" /> New Goal
                 </Button>
             </div>
@@ -41,8 +76,7 @@ export default function GoalsPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Completion Rate</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">62%</div>
-                        <p className="text-xs text-green-400 mt-1 flex items-center">+12% from last month</p>
+                        <div className="text-2xl font-bold">{stats.completionRate}%</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-white/5 border-white/5">
@@ -50,17 +84,15 @@ export default function GoalsPage() {
                         <CardTitle className="text-sm font-medium text-muted-foreground">Active Goals</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">8</div>
-                        <p className="text-xs text-muted-foreground mt-1">3 critical path</p>
+                        <div className="text-2xl font-bold">{stats.active}</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-white/5 border-white/5">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Deadlines</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Completed Goals</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">2</div>
-                        <p className="text-xs text-orange-400 mt-1">Due this week</p>
+                        <div className="text-2xl font-bold">{stats.completed}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -73,15 +105,19 @@ export default function GoalsPage() {
                                 <div className="flex items-start gap-4 flex-1">
                                     <div className={cn(
                                         "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                                        goal.status === 'Done' ? "bg-green-500/20 text-green-400" : "bg-primary/20 text-primary"
+                                        goal.progress === 100 ? "bg-green-500/20 text-green-400" : "bg-primary/20 text-primary"
                                     )}>
-                                        {goal.status === 'Done' ? <CheckCircle2 className="w-5 h-5" /> : <Target className="w-5 h-5" />}
+                                        {goal.progress === 100 ? <CheckCircle2 className="w-5 h-5" /> : <Target className="w-5 h-5" />}
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-lg">{goal.title}</h3>
                                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                                             <span className="bg-white/5 px-2 py-0.5 rounded text-xs border border-white/5">{goal.type}</span>
-                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {goal.dueDate}</span>
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" />
+                                                {/* Handle different date formats or timestamps */}
+                                                {goal.dueDate || "No Date"}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -105,21 +141,79 @@ export default function GoalsPage() {
                                     <div className={cn(
                                         "px-3 py-1 rounded-full text-xs font-medium border",
                                         goal.status === 'On Track' ? "bg-green-500/10 text-green-400 border-green-500/20" :
-                                            goal.status === 'At Risk' ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                                                goal.status === 'Done' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                                                    "bg-white/5 text-muted-foreground border-white/10"
+                                            goal.status === 'At Risk' || goal.status === 'Behind' ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                                                "bg-white/5 text-muted-foreground border-white/10"
                                     )}>
                                         {goal.status}
                                     </div>
-                                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <MoreHorizontal className="w-4 h-4" />
-                                    </Button>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 ))}
+                {goals.length === 0 && <div className="text-center text-muted-foreground py-10">No goals found. Create one!</div>}
             </div>
+
+            {/* Simple Modal Overlay */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <Card className="w-full max-w-lg bg-black border-white/10">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>Create New Goal</CardTitle>
+                            <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleCreateGoal} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Goal Title</Label>
+                                    <Input
+                                        placeholder="e.g. Launch MVP"
+                                        value={newGoal.title}
+                                        onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Type</Label>
+                                        <select
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={newGoal.type}
+                                            onChange={(e) => setNewGoal({ ...newGoal, type: e.target.value })}
+                                        >
+                                            <option value="Product">Product</option>
+                                            <option value="Validation">Validation</option>
+                                            <option value="Sales">Sales</option>
+                                            <option value="Fundraising">Fundraising</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Current Progress (%)</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value={newGoal.progress}
+                                            onChange={(e) => setNewGoal({ ...newGoal, progress: parseInt(e.target.value) })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Due Date</Label>
+                                    <Input
+                                        type="date"
+                                        value={newGoal.dueDate}
+                                        onChange={(e) => setNewGoal({ ...newGoal, dueDate: e.target.value })}
+                                    />
+                                </div>
+                                <Button type="submit" className="w-full">Create Goal</Button>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }

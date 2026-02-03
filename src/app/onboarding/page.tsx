@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ChevronLeft, Rocket, Dna, Check } from "lucide-react";
+import { ArrowRight, ChevronLeft, Rocket, Dna } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 const STARTUP_TYPES = [
     "Fintech", "Edtech", "Healthtech", "SaaS", "AI",
-    "E-commerce", "Marketplace", "Web3", "AgriTech", "ClimateTech"
+    "E-commerce", "Marketplace", "Web3", "AgriTech", "ClimateTech", "Others"
 ];
 
 const STAGES = [
@@ -26,21 +26,29 @@ const STAGES = [
     { id: "validation", label: "Validation", desc: "Talking to users" },
     { id: "mvp", label: "MVP", desc: "Building first version" },
     { id: "revenue", label: "Early Revenue", desc: "First paying customers" },
+    { id: "fundraising", label: "Fundraising", desc: "Seeking investment" },
     { id: "growth", label: "Growth", desc: "Scaling up" },
 ];
 
 export default function OnboardingPage() {
     const router = useRouter();
     const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
+        phone: "",
+        country: "",
+        city: "",
+        website: "",
         types: [] as string[],
         stage: "",
         problem: "",
-        solution: "",
         customer: "",
+        solution: "",
+        revenueModel: "",
+        assumptions: "",
     });
 
     const toggleType = (type: string) => {
@@ -60,15 +68,37 @@ export default function OnboardingPage() {
     };
 
     const handleSubmit = async () => {
+        if (!formData.stage || formData.types.length === 0) {
+            toast.error("Missing Information", {
+                description: "Please select a startup stage and at least one industry type."
+            });
+            return;
+        }
+
+        setLoading(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
             const user = userCredential.user;
 
-            await setDoc(doc(db, "startups", user.uid), {
+            const startupData = {
                 ...formData,
                 password: null, // Don't save password in DB
                 createdAt: new Date(),
-                userId: user.uid
+                userId: user.uid,
+                status: "pending", // Default status for approval
+                healthScore: 0, // Initial score
+                role: "FOUNDER",
+            };
+
+            // Save to startups collection
+            await setDoc(doc(db, "startups", user.uid), startupData);
+
+            // Also create a user record for role management
+            await setDoc(doc(db, "users", user.uid), {
+                email: formData.email,
+                role: "FOUNDER",
+                startupId: user.uid,
+                createdAt: new Date()
             });
 
             toast.success("Startup OS Initialized", {
@@ -76,9 +106,12 @@ export default function OnboardingPage() {
             });
             router.push("/dashboard");
         } catch (error: any) {
+            console.error(error);
             toast.error("Setup Failed", {
                 description: error.message
             });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -110,7 +143,6 @@ export default function OnboardingPage() {
                     <div className="absolute left-0 top-1/2 w-full h-0.5 bg-white/10 -z-10" />
                     <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors", step >= 1 ? "bg-primary text-white" : "bg-white/10 text-muted-foreground")}>1</div>
                     <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors", step >= 2 ? "bg-primary text-white" : "bg-white/10 text-muted-foreground")}>2</div>
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors", step >= 3 ? "bg-primary text-white" : "bg-white/10 text-muted-foreground")}>3</div>
                 </div>
 
                 <Card className="glass-panel border-white/10">
@@ -126,7 +158,7 @@ export default function OnboardingPage() {
                                 >
                                     <div className="grid md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <Label>Startup Name</Label>
+                                            <Label>Startup Name *</Label>
                                             <Input
                                                 placeholder="e.g. Acme Corp"
                                                 value={formData.name}
@@ -136,7 +168,7 @@ export default function OnboardingPage() {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Founder Email</Label>
+                                            <Label>Founder Email *</Label>
                                             <Input
                                                 type="email"
                                                 placeholder="you@company.com"
@@ -146,7 +178,7 @@ export default function OnboardingPage() {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Password</Label>
+                                            <Label>Password *</Label>
                                             <Input
                                                 type="password"
                                                 placeholder="••••••••"
@@ -156,10 +188,45 @@ export default function OnboardingPage() {
                                                 minLength={6}
                                             />
                                         </div>
+                                        <div className="space-y-2">
+                                            <Label>Phone Number *</Label>
+                                            <Input
+                                                placeholder="+1 234 567 8900"
+                                                value={formData.phone}
+                                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Country *</Label>
+                                            <Input
+                                                placeholder="United States"
+                                                value={formData.country}
+                                                onChange={e => setFormData({ ...formData, country: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>City *</Label>
+                                            <Input
+                                                placeholder="San Francisco"
+                                                value={formData.city}
+                                                onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label>Website (Optional)</Label>
+                                            <Input
+                                                placeholder="https://acme.com"
+                                                value={formData.website}
+                                                onChange={e => setFormData({ ...formData, website: e.target.value })}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <Label>Industry / Sectors (Select all that apply)</Label>
+                                        <Label>Industry / Sectors *</Label>
                                         <div className="flex flex-wrap gap-2">
                                             {STARTUP_TYPES.map(type => (
                                                 <button
@@ -180,8 +247,8 @@ export default function OnboardingPage() {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <Label>Current Stage</Label>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                        <Label>Current Stage *</Label>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                             {STAGES.map(stage => (
                                                 <div
                                                     key={stage.id}
@@ -217,31 +284,56 @@ export default function OnboardingPage() {
 
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <Label>Problem Statement</Label>
+                                            <Label>Problem Statement *</Label>
                                             <Textarea
                                                 placeholder="What painful problem are you solving? Be specific."
                                                 value={formData.problem}
                                                 onChange={e => setFormData({ ...formData, problem: e.target.value })}
                                                 className="bg-black/20"
+                                                required
                                             />
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>Target Customer</Label>
+                                            <Label>Target Customer *</Label>
                                             <Input
                                                 placeholder="Who is desperate for this solution?"
                                                 value={formData.customer}
                                                 onChange={e => setFormData({ ...formData, customer: e.target.value })}
+                                                required
                                             />
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>Solution Summary</Label>
+                                            <Label>Solution Summary *</Label>
                                             <Textarea
                                                 placeholder="How do you solve it uniquely?"
                                                 value={formData.solution}
                                                 onChange={e => setFormData({ ...formData, solution: e.target.value })}
                                                 className="bg-black/20"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Revenue Model *</Label>
+                                            <Textarea
+                                                placeholder="How will you make money? (e.g., Subscription, Transaction fees)"
+                                                value={formData.revenueModel}
+                                                onChange={e => setFormData({ ...formData, revenueModel: e.target.value })}
+                                                className="bg-black/20"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Key Assumptions *</Label>
+                                            <Textarea
+                                                placeholder="What must be true for this business to work?"
+                                                value={formData.assumptions}
+                                                onChange={e => setFormData({ ...formData, assumptions: e.target.value })}
+                                                className="bg-black/20"
+                                                required
                                             />
                                         </div>
                                     </div>
@@ -251,15 +343,15 @@ export default function OnboardingPage() {
 
                         <div className="p-8 pt-0 flex justify-between">
                             {step > 1 ? (
-                                <Button type="button" variant="ghost" onClick={handleBack}>
+                                <Button type="button" variant="ghost" onClick={handleBack} disabled={loading}>
                                     <ChevronLeft className="mr-2 w-4 h-4" /> Back
                                 </Button>
                             ) : (
                                 <div />
                             )}
 
-                            <Button type="submit" variant="gradient" className="min-w-[140px]">
-                                {step === 2 ? "Launch OS" : "Next Step"} <ArrowRight className="ml-2 w-4 h-4" />
+                            <Button type="submit" variant="gradient" className="min-w-[140px]" disabled={loading}>
+                                {loading ? "Initializing..." : (step === 2 ? "Launch OS" : "Next Step")} <ArrowRight className="ml-2 w-4 h-4" />
                             </Button>
                         </div>
                     </form>

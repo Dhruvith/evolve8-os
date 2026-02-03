@@ -18,11 +18,11 @@ import {
 const MENU_ITEMS = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
     { icon: Target, label: "Goals", href: "/dashboard/goals" },
-    { icon: Flag, label: "Milestones", href: "/dashboard" }, // Pending impl
-    { icon: CheckSquare, label: "Tasks", href: "/dashboard" }, // Pending impl
+    { icon: Flag, label: "Milestones", href: "/dashboard" }, // Can add page if needed
+    { icon: CheckSquare, label: "Tasks", href: "/dashboard/tasks" },
     { icon: Users, label: "Team", href: "/dashboard/team" },
-    { icon: FileText, label: "Documents", href: "/dashboard" }, // Pending impl
-    { icon: BarChart2, label: "Analytics", href: "/dashboard" }, // Pending impl
+    { icon: FileText, label: "Documents", href: "/dashboard" },
+    { icon: BarChart2, label: "Analytics", href: "/dashboard" },
 ];
 
 export function Sidebar() {
