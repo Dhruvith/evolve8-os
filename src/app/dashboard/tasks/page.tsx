@@ -38,8 +38,11 @@ export default function TasksPage() {
             toast.success("Task Added");
             setIsModalOpen(false);
             setNewTask({ title: "", priority: "Medium", goalId: "", assigneeId: "", dueDate: "" });
-        } catch (error) {
-            toast.error("Failed to add task");
+        } catch (error: any) {
+            console.error("Error adding task:", error);
+            toast.error("Failed to add task", {
+                description: error.message || "Please check your permissions."
+            });
         }
     };
 

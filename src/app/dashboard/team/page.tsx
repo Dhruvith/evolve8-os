@@ -42,8 +42,11 @@ export default function TeamPage() {
             });
             setIsModalOpen(false);
             setNewMember({ name: "", email: "", role: "", access: "View Only" });
-        } catch (error) {
-            toast.error("Failed to add member");
+        } catch (error: any) {
+            console.error("Error adding team member:", error);
+            toast.error("Failed to add member", {
+                description: error.message || "Please check your permissions."
+            });
         }
     };
 

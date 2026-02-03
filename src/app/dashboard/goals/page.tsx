@@ -53,8 +53,11 @@ export default function GoalsPage() {
             toast.success("Goal Created");
             setIsModalOpen(false);
             setNewGoal({ title: "", type: "Product", dueDate: "", progress: 0 });
-        } catch (error) {
-            toast.error("Failed to create goal");
+        } catch (error: any) {
+            console.error("Error creating goal:", error);
+            toast.error("Failed to create goal", {
+                description: error.message || "Please check your permissions."
+            });
         }
     };
 
