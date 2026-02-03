@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
     // Active Goals Count
     const activeGoals = goals.filter(g => g.status !== "Completed").length;
-    const blockedGoals = goals.filter(g => g.status === "Blocked").length;
+    const blockedGoals = goals.filter(g => g.status === "At Risk" || g.status === "Behind").length;
 
     // Tasks Status
     const dueTasks = tasks.filter(t => t.status !== "Done").length;
@@ -188,7 +188,7 @@ export default function DashboardPage() {
                             {goals.slice(0, 3).map((goal) => (
                                 <Card key={goal.id} className="group hover:bg-white/5 transition-colors cursor-pointer">
                                     <CardContent className="p-4 flex items-center gap-4">
-                                        <div className={cn("w-2 h-12 rounded-full", goal.status === "Completed" ? "bg-green-500" : goal.status === "Blocked" ? "bg-red-500" : "bg-primary")} />
+                                        <div className={cn("w-2 h-12 rounded-full", goal.status === "Completed" ? "bg-green-500" : (goal.status === "At Risk" || goal.status === "Behind") ? "bg-red-500" : "bg-primary")} />
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-1">
                                                 <h3 className="font-medium">{goal.title}</h3>
