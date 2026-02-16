@@ -41,6 +41,9 @@ export interface TeamMember {
     email: string;
     avatar?: string;
     activityScore?: number;
+    position?: string;
+    access?: string;
+    status?: string;
 }
 
 export function useDashboardData() {
